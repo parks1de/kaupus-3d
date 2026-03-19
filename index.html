@@ -26,7 +26,7 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
 }
 #matrix-greeting {
   font-family:'Courier New',monospace;
-  font-size:clamp(13px,2.6vw,38px);
+  font-size:clamp(16px,3.2vw,46px);
   font-weight:700;
   color:#00ff41;
   letter-spacing:0.06em;
@@ -142,7 +142,7 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
 <div id="matrix-intro">
   <canvas id="matrix-canvas"></canvas>
   <div id="matrix-text">
-    <div id="matrix-greeting">Kaupanger Næringsliv.</div>
+    <div id="matrix-greeting">Hei, Tor Arne.</div>
     <div id="matrix-load-status">Lastar 3D — hald ut&hellip;</div>
     <div id="matrix-progress-wrap"><div id="matrix-progress"></div></div>
     <div id="matrix-hint">[ klikk for å halda fram ]</div>
@@ -274,14 +274,14 @@ function setLoadProgress(pct, msg) {
   fill.position.set(-300,200,-400); scene.add(fill);
 
   // ── Orbit ─────────────────────────────────────────────────────
-  let rotX=-0.72,rotY=0.25,radius=480,panX=0,panY=20;
-  const DEF={rotX:-0.72,rotY:0.25,radius:480,panX:0,panY:20};
+  let rotX=-0.65,rotY=0.3,radius=520,panX=0,panY=0;
+  const DEF={rotX:-0.65,rotY:0.3,radius:520,panX:0,panY:0};
   function updateCamera(){
     const x=panX+radius*Math.sin(rotY)*Math.cos(rotX);
-    const y=panY-radius*Math.sin(rotX)+150;
+    const y=-radius*Math.sin(rotX)+80;
     const z=radius*Math.cos(rotY)*Math.cos(rotX);
     camera.position.set(x,Math.max(5,y),z);
-    camera.lookAt(panX,panY*0.3,0);
+    camera.lookAt(panX,0,panY);
   }
   updateCamera();
 
