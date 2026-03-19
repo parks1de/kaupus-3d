@@ -34,9 +34,9 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
   white-space:nowrap;
   overflow:hidden;
   width:0;
-  max-width:96vw;
+  max-width:92vw;
   border-right:3px solid #00ff41;
-  animation: typewriter 1.6s steps(21,end) 0s forwards, blink 0.75s step-end 1.6s 6;
+  animation: typewriter 1.6s steps(15,end) 0s forwards, blink 0.75s step-end 1.6s 6;
 }
 #matrix-load-status {
   font-family:'Courier New',monospace;
@@ -71,7 +71,7 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
 }
 @keyframes typewriter {
   from { width:0; }
-  to   { width:22ch; }
+  to   { width:15ch; }
 }
 @keyframes blink {
   0%,100% { border-color:#00ff41; }
@@ -142,7 +142,7 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
 <div id="matrix-intro">
   <canvas id="matrix-canvas"></canvas>
   <div id="matrix-text">
-    <div id="matrix-greeting">Hei, Tor Arne.</div>
+    <div id="matrix-greeting">Kaupanger Næringsliv.</div>
     <div id="matrix-load-status">Lastar 3D — hald ut&hellip;</div>
     <div id="matrix-progress-wrap"><div id="matrix-progress"></div></div>
     <div id="matrix-hint">[ klikk for å halda fram ]</div>
@@ -386,15 +386,23 @@ function setLoadProgress(pct, msg) {
   root.scale.setScalar(500/Math.max(size.x,size.z));
   const box2=new THREE.Box3().setFromObject(root);
   root.position.y-=box2.min.y;
-  root.traverse(child=>{
-    if(child.isMesh){
-      child.castShadow=true;child.receiveShadow=true;
+  // Collect meshes
+  const allMeshes=[];
+  root.traverse(child=>{ if(child.isMesh) allMeshes.push(child); });
+
+  // Process in async chunks - yields to browser between each so UI stays alive
+  for(let i=0;i<allMeshes.length;i+=60){
+    const slice=allMeshes.slice(i,i+60);
+    for(const child of slice){
+      child.castShadow=true; child.receiveShadow=true;
       layers[classify(child.parent?.name||child.name||'')].add(child);
     }
-  });
+    setLoadProgress(80+Math.round((i/allMeshes.length)*15),'Organiserer lag…');
+    await new Promise(r=>setTimeout(r,0));
+  }
 
   let tris=0;
-  scene.traverse(c=>{if(c.isMesh&&c.geometry)tris+=(c.geometry.index?c.geometry.index.count:c.geometry.attributes.position.count)/3;});
+  for(const c of allMeshes){if(c.geometry)tris+=(c.geometry.index?c.geometry.index.count:c.geometry.attributes.position.count)/3;}
   statsEl.textContent='Bygn: 316  •  Vegar: 197  •  Trikantar: '+Math.round(tris/1000)+'k';
 
   // Layer toggles
