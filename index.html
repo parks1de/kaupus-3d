@@ -274,8 +274,8 @@ function setLoadProgress(pct, msg) {
   fill.position.set(-300,200,-400); scene.add(fill);
 
   // ── Orbit ─────────────────────────────────────────────────────
-  let rotX=-0.55,rotY=0.35,radius=700,panX=0,panY=0;
-  const DEF={rotX:-0.55,rotY:0.35,radius:700,panX:0,panY:0};
+  let rotX=-0.72,rotY=0.25,radius=480,panX=0,panY=20;
+  const DEF={rotX:-0.72,rotY:0.25,radius:480,panX:0,panY:20};
   function updateCamera(){
     const x=panX+radius*Math.sin(rotY)*Math.cos(rotX);
     const y=panY-radius*Math.sin(rotX)+150;
