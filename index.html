@@ -103,7 +103,7 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
   display:flex; align-items:center; gap:16px; padding:0 18px;
   z-index:30; backdrop-filter:blur(6px);
 }
-#hlogo { height:38px; width:38px; object-fit:contain; filter:invert(1) brightness(0.8); }
+#hlogo { height:38px; width:38px; object-fit:contain; filter:invert(1) brightness(0.8); mix-blend-mode:lighten; }
 .hdiv { width:1px; height:28px; background:rgba(74,158,255,0.18); flex-shrink:0; }
 #htext { display:flex; flex-direction:column; gap:2px; }
 #htitle { font-size:14px; font-weight:700; letter-spacing:0.2em; color:#b8cce0; text-transform:uppercase; line-height:1; }
@@ -136,8 +136,8 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
   position:fixed; bottom:14px; left:14px; z-index:20;
   font-size:10px; color:#5a7a9a; line-height:1.9; letter-spacing:0.06em;
   text-shadow:0 1px 4px rgba(0,0,0,0.9);
-  background:rgba(5,8,15,0.55); padding:6px 10px;
-  border:1px solid rgba(74,158,255,0.08);
+  background:rgba(0,0,0,0.22); padding:6px 10px;
+  border:none;
 }
 #stats {
   position:fixed; bottom:14px; right:14px; z-index:20;
@@ -163,7 +163,7 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
     <div id="matrix-load-status">Lastar 3D — hald ut&hellip;</div>
     <div id="matrix-progress-wrap"><div id="matrix-progress"></div></div>
     <div id="matrix-hint">[ klikk for å halda fram ]</div>
-  <div id="matrix-version">v1.5</div>
+  <div id="matrix-version">v1.6</div>
   </div>
 </div>
 
@@ -281,7 +281,7 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
+  renderer.toneMappingExposure = 1.2;
   document.getElementById('app').prepend(renderer.domElement);
 
   // ── Scene ─────────────────────────────────────────────────────────
@@ -294,9 +294,9 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
   camera.up.set(0, 1, 0);
 
   // ── Lights ────────────────────────────────────────────────────────
-  scene.add(new THREE.AmbientLight(0xb0c0d8, 0.45));
-  const sun = new THREE.DirectionalLight(0xfff4d8, 2.2);
-  sun.position.set(400, 800, 300);
+  scene.add(new THREE.AmbientLight(0xb0c0d8, 0.35));
+  const sun = new THREE.DirectionalLight(0xfff4d8, 1.4);
+  sun.position.set(50, 100, 50);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.near = 1; sun.shadow.camera.far = 3000;
@@ -426,10 +426,10 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
         const roughMap = {buildings:0.6,terrain:0.8,roads:0.65,green:0.6,water:0.15,parcels:0.7,contours:0.75};
         const cloned = mats.map(m => {
           const mc = m.clone();
-          mc.color.copy(layerColors[key]).multiplyScalar(1.15);
-          mc.roughness = roughMap[key] ?? 0.65;
-          mc.metalness = key === 'water' ? 0.05 : 0.0;
-          mc.emissive = layerColors[key].clone().multiplyScalar(0.12);
+          mc.color.copy(layerColors[key]).multiplyScalar(1.25);
+          mc.roughness = key === 'water' ? 0.12 : 0.55;
+          mc.metalness = 0.02;
+          mc.emissive = layerColors[key].clone().multiplyScalar(0.18);
           return mc;
         });
         c.material = cloned.length === 1 ? cloned[0] : cloned;
