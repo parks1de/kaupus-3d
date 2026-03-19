@@ -380,6 +380,8 @@ function setLoadProgress(pct, msg) {
   }
 
   const root=glb.scene;
+  // Flip model right-side up (GLB Y-up vs Z-up convention)
+  root.rotation.x = Math.PI;
   // Scale first
   const box0=new THREE.Box3().setFromObject(root);
   const size0=box0.getSize(new THREE.Vector3());
