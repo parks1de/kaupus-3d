@@ -163,7 +163,7 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
     <div id="matrix-load-status">Lastar 3D — hald ut&hellip;</div>
     <div id="matrix-progress-wrap"><div id="matrix-progress"></div></div>
     <div id="matrix-hint">[ klikk for å halda fram ]</div>
-  <div id="matrix-version">v1.6</div>
+  <div id="matrix-version">v1.7</div>
   </div>
 </div>
 
@@ -405,9 +405,9 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
   // Layer colors — strong, saturated overrides
   const layerColors = {
     buildings: new THREE.Color(0xd4c4a0), // warm stone
-    terrain:   new THREE.Color(0xe8dfd0), // warm ground
+    terrain:   new THREE.Color(0xd6d0c2), // darker ground
     green:     new THREE.Color(0x72c46a), // strong green
-    roads:     new THREE.Color(0xa09078), // warm asphalt
+    roads:     new THREE.Color(0x7a6f5a), // darker roads
     water:     new THREE.Color(0x4aa8e8), // strong blue
     parcels:   new THREE.Color(0xe0c840), // amber cadastre
     contours:  new THREE.Color(0xb89850), // tan contours
@@ -420,16 +420,20 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
       c.castShadow = true; c.receiveShadow = true;
       const key = classify(c.name);
       layers[key].push(c);
+      if (key === 'water') c.position.y += 0.3;
       // Override material color per layer
       if (c.material && layerColors[key]) {
         const mats = Array.isArray(c.material) ? c.material : [c.material];
         const roughMap = {buildings:0.6,terrain:0.8,roads:0.65,green:0.6,water:0.15,parcels:0.7,contours:0.75};
         const cloned = mats.map(m => {
           const mc = m.clone();
-          mc.color.copy(layerColors[key]).multiplyScalar(1.25);
-          mc.roughness = key === 'water' ? 0.12 : 0.55;
+          mc.color.copy(layerColors[key]);
+          if (key === 'water' || key === 'green') mc.color.multiplyScalar(1.4);
+          else mc.color.multiplyScalar(1.1);
+          mc.roughness = key === 'water' ? 0.12 : 0.58;
           mc.metalness = 0.02;
-          mc.emissive = layerColors[key].clone().multiplyScalar(0.18);
+          mc.emissive = layerColors[key].clone().multiplyScalar(0.08);
+          if (key === 'water') { mc.polygonOffset=true; mc.polygonOffsetFactor=-2; mc.polygonOffsetUnits=-2; }
           return mc;
         });
         c.material = cloned.length === 1 ? cloned[0] : cloned;
