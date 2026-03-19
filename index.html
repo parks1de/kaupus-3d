@@ -201,18 +201,79 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-(async () => {
-  const statsEl  = document.getElementById('stats');
-  const loadDiv  = document.getElementById('matrix-intro');
-  const loadBar  = document.getElementById('matrix-progress');
-  const loadTxt  = document.getElementById('matrix-load-status');
+// ── Matrix rain + intro logic ─────────────────────────────────────
+(function() {
+  const mc  = document.getElementById('matrix-canvas');
+  const mx  = mc.getContext('2d');
+  function resizeMC() { mc.width=window.innerWidth; mc.height=window.innerHeight; }
+  resizeMC();
+  window.addEventListener('resize', resizeMC);
 
-  function setP(pct, msg) {
-    loadBar.style.width = pct + '%';
-    if (msg) loadTxt.textContent = msg;
+  const chars = 'アイウエオカキクケコ0123456789ABCDEF<>[]|/=+-*';
+  let drops = [];
+  function resetDrops() {
+    const cols = Math.floor(mc.width / 14);
+    drops = Array(cols).fill(0).map(() => Math.random() * -50 | 0);
+  }
+  resetDrops();
+  window.addEventListener('resize', resetDrops);
+
+  const matrixInterval = setInterval(() => {
+    mx.fillStyle = 'rgba(0,0,0,0.05)';
+    mx.fillRect(0, 0, mc.width, mc.height);
+    mx.font = '14px Courier New';
+    drops.forEach((d, i) => {
+      mx.fillStyle = Math.random() > 0.95 ? '#ccffcc' : '#00cc33';
+      mx.fillText(chars[Math.random() * chars.length | 0], i * 14, d * 14);
+      if (d * 14 > mc.height && Math.random() > 0.975) drops[i] = 0;
+      drops[i]++;
+    });
+  }, 40);
+
+  // State machine: both model AND user must be ready
+  let modelReady = false;
+  let userClicked = false;
+
+  function tryDismiss() {
+    if (!modelReady || !userClicked) return;
+    clearInterval(matrixInterval);
+    const intro = document.getElementById('matrix-intro');
+    intro.style.transition = 'opacity 0.7s';
+    intro.style.opacity = '0';
+    setTimeout(() => { intro.style.display = 'none'; }, 700);
+    document.getElementById('app').classList.add('ready');
   }
 
-  // ── Renderer ────────────────────────────────────────────────────
+  document.getElementById('matrix-intro').addEventListener('click', () => {
+    if (!modelReady) return; // not ready yet, ignore click
+    userClicked = true;
+    tryDismiss();
+  });
+
+  // Called by 3D loader when model is fully ready
+  window.setModelReady = function() {
+    modelReady = true;
+    document.getElementById('matrix-load-status').textContent = 'Klar!';
+    document.getElementById('matrix-progress').style.width = '100%';
+    setTimeout(() => {
+      document.getElementById('matrix-load-status').textContent = '';
+      document.getElementById('matrix-hint').style.opacity = '1';
+    }, 400);
+  };
+
+  window.setLoadProgress = function(pct, msg) {
+    document.getElementById('matrix-progress').style.width = pct + '%';
+    if (msg) document.getElementById('matrix-load-status').textContent = msg;
+  };
+})();
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(async () => {
+  function setP(pct, msg) { window.setLoadProgress(pct, msg); }
+
+  // ── Renderer ─────────────────────────────────────────────────────
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -223,17 +284,16 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
   renderer.toneMappingExposure = 1.15;
   document.getElementById('app').prepend(renderer.domElement);
 
-  // ── Scene ────────────────────────────────────────────────────────
-  const scene  = new THREE.Scene();
+  // ── Scene ─────────────────────────────────────────────────────────
+  const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x08090f);
   scene.fog = new THREE.FogExp2(0x08090f, 0.0004);
   scene.up.set(0, 1, 0);
 
   const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000);
   camera.up.set(0, 1, 0);
-  camera.position.set(0, 600, 800);
 
-  // Lights
+  // ── Lights ────────────────────────────────────────────────────────
   scene.add(new THREE.AmbientLight(0xb0c0d8, 0.7));
   const sun = new THREE.DirectionalLight(0xfff4d8, 1.5);
   sun.position.set(400, 800, 300);
@@ -243,9 +303,11 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
   sun.shadow.camera.left = sun.shadow.camera.bottom = -700;
   sun.shadow.camera.right = sun.shadow.camera.top = 700;
   scene.add(sun);
-  scene.add(Object.assign(new THREE.DirectionalLight(0x7090c0, 0.4), { position: new THREE.Vector3(-300, 200, -400) }));
+  const fill = new THREE.DirectionalLight(0x7090c0, 0.4);
+  fill.position.set(-300, 200, -400);
+  scene.add(fill);
 
-  // ── Load libs ────────────────────────────────────────────────────
+  // ── Load GLTFLoader + OrbitControls ───────────────────────────────
   setP(5, 'Laster bibliotek…');
   await Promise.all([
     new Promise((res, rej) => {
@@ -260,17 +322,16 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
     })
   ]);
 
-  // ── OrbitControls ────────────────────────────────────────────────
+  // ── OrbitControls ─────────────────────────────────────────────────
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
-  controls.enableDamping    = true;
-  controls.dampingFactor    = 0.06;
+  controls.enableDamping     = true;
+  controls.dampingFactor     = 0.06;
   controls.screenSpacePanning = false;
-  controls.minDistance      = 5;
-  controls.maxDistance      = 6000;
-  controls.maxPolarAngle    = Math.PI / 2 - 0.02; // don't go underground
-  controls.target.set(0, 0, 0);
+  controls.minDistance       = 5;
+  controls.maxDistance       = 6000;
+  controls.maxPolarAngle     = Math.PI / 2 - 0.02;
 
-  // ── Load GLB ─────────────────────────────────────────────────────
+  // ── Load GLB ──────────────────────────────────────────────────────
   setP(15, 'Hentar modell…');
   const loader = new THREE.GLTFLoader();
   const glb = await new Promise((res, rej) => {
@@ -287,50 +348,47 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
 
   const root = glb.scene;
 
-  // 1. Add to scene first so matrixWorld is valid
+  // 1. Add to scene first
   scene.add(root);
 
-  // 2. Hide line geometry BEFORE bounding box calculations
+  // 2. Hide all line primitives (floating duplicates from GIS export)
   root.traverse(obj => {
     if (obj.isLine || obj.isLineSegments || obj.isLineLoop) obj.visible = false;
   });
 
-  // 3. Fix axis: GIS exports are Z-up, glTF is Y-up
+  // 3. Fix axis: GIS Z-up → glTF Y-up
   root.rotation.x = -Math.PI / 2;
   root.updateMatrixWorld(true);
 
   // 4. Scale to ~500 world units
   const box0  = new THREE.Box3().setFromObject(root);
   const size0 = box0.getSize(new THREE.Vector3());
-  const sc    = 500 / Math.max(size0.x, size0.z);
-  root.scale.setScalar(sc);
+  root.scale.setScalar(500 / Math.max(size0.x, size0.z));
   root.updateMatrixWorld(true);
 
-  // 5. Center on world origin — THE critical step for OrbitControls
+  // 5. Center on world origin — critical for OrbitControls
   const box1   = new THREE.Box3().setFromObject(root);
   const center = box1.getCenter(new THREE.Vector3());
   root.position.sub(center);
   root.updateMatrixWorld(true);
 
-  // 6. Compute final size AFTER all transforms
-  const finalBox  = new THREE.Box3().setFromObject(root);
-  const finalSize = finalBox.getSize(new THREE.Vector3());
-  const maxDim    = Math.max(finalSize.x, finalSize.y, finalSize.z);
-
-  // 7. Set camera ONCE, here, after model is centered — never set again elsewhere
+  // 6. Set camera ONCE based on actual model size
+  const box2   = new THREE.Box3().setFromObject(root);
+  const size2  = box2.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size2.x, size2.y, size2.z);
   camera.position.set(0, maxDim * 1.2, maxDim * 1.8);
   camera.lookAt(0, 0, 0);
 
-  // 8. Controls target = world origin = model center
+  // 7. Controls target = world origin
   controls.target.set(0, 0, 0);
   controls.update();
 
-  console.log('[KAUPUS v1.3] maxDim:', maxDim, 'bounds:', finalBox.min, finalBox.max);
+  console.log('[KAUPUS v1.3] maxDim:', maxDim.toFixed(1), 'bounds:', box2.min, box2.max);
 
   setP(80, 'Organiserer lag…');
   await new Promise(r => setTimeout(r, 20));
 
-  // ── Layer refs (meshes stay in root, we just track for visibility) ─
+  // ── Layer tracking ────────────────────────────────────────────────
   const layers = { buildings:[], terrain:[], green:[], roads:[], water:[], parcels:[], contours:[] };
   function classify(name) {
     if (!name) return 'terrain';
@@ -355,12 +413,9 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
     await new Promise(r => setTimeout(r, 0));
   }
 
-  // Stats
   let tris = 0;
   allMeshes.forEach(c => { if (c.geometry) tris += (c.geometry.index ? c.geometry.index.count : c.geometry.attributes.position.count) / 3; });
-  statsEl.textContent = 'Bygn: 316  •  Vegar: 197  •  Trikantar: ' + Math.round(tris / 1000) + 'k';
-
-  // (camera already set after model load — not overriding here)
+  document.getElementById('stats').textContent = 'Bygn: 316  •  Vegar: 197  •  Trikantar: ' + Math.round(tris / 1000) + 'k';
 
   // ── Layer toggles ─────────────────────────────────────────────────
   [['tog-buildings','buildings'],['tog-terrain','terrain'],['tog-green','green'],
@@ -371,6 +426,7 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
     });
   });
 
+  // ── Reset button ──────────────────────────────────────────────────
   document.getElementById('reset-btn').addEventListener('click', () => {
     camera.position.set(0, maxDim * 1.2, maxDim * 1.8);
     camera.lookAt(0, 0, 0);
@@ -385,92 +441,45 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
-  // ── Done ──────────────────────────────────────────────────────────
-  document.getElementById('app').classList.add('ready');
-  setModelReady();
-
-  // ── Nav cube (orientation gizmo) ─────────────────────────────────
-  const cubeCanvas  = document.getElementById('nav-cube');
-  const cubeCtx     = cubeCanvas.getContext('2d');
-  cubeCanvas.width  = 64;
-  cubeCanvas.height = 64;
-
-  // Cube corners in local space [-1,1]
-  const cubeVerts = [
-    [-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1], // back face
-    [-1,-1, 1],[1,-1, 1],[1,1, 1],[-1,1, 1]  // front face
+  // ── Nav cube ──────────────────────────────────────────────────────
+  const cubeCanvas = document.getElementById('nav-cube');
+  const cubeCtx    = cubeCanvas.getContext('2d');
+  cubeCanvas.width = cubeCanvas.height = 64;
+  const cVerts = [[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]];
+  const cEdges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+  const cFaces = [
+    {v:[4,5,6,7],l:'N',c:'rgba(74,158,255,0.18)'},{v:[0,1,2,3],l:'S',c:'rgba(74,158,255,0.10)'},
+    {v:[1,5,6,2],l:'Ø',c:'rgba(74,158,255,0.13)'},{v:[0,4,7,3],l:'V',c:'rgba(74,158,255,0.13)'},
+    {v:[3,2,6,7],l:'T',c:'rgba(100,200,100,0.22)'},{v:[0,1,5,4],l:'B',c:'rgba(74,158,255,0.07)'}
   ];
-  const cubeEdges = [
-    [0,1],[1,2],[2,3],[3,0], // back
-    [4,5],[5,6],[6,7],[7,4], // front
-    [0,4],[1,5],[2,6],[3,7]  // sides
-  ];
-  const cubeFaces = [
-    { verts:[4,5,6,7], label:'N', color:'rgba(74,158,255,0.18)' },
-    { verts:[0,1,2,3], label:'S', color:'rgba(74,158,255,0.10)' },
-    { verts:[1,5,6,2], label:'Ø', color:'rgba(74,158,255,0.13)' },
-    { verts:[0,4,7,3], label:'V', color:'rgba(74,158,255,0.13)' },
-    { verts:[3,2,6,7], label:'T', color:'rgba(100,200,100,0.22)' }, // top
-    { verts:[0,1,5,4], label:'B', color:'rgba(74,158,255,0.07)' },  // bottom
-  ];
-
   function drawNavCube() {
-    const W = 64, H = 64, cx = W/2, cy = H/2, S = 22;
-    cubeCtx.clearRect(0, 0, W, H);
-
-    // Get camera direction from main camera
-    const camDir = new THREE.Vector3();
-    camera.getWorldDirection(camDir);
-    const camUp = camera.up.clone();
-    const camRight = new THREE.Vector3().crossVectors(camDir, camUp).normalize();
-
-    // Build rotation matrix from camera orientation (inverse)
-    const rotMat = new THREE.Matrix4().makeBasis(
-      camRight, camUp, camDir.negate()
-    );
-
-    function project(v) {
-      const p = new THREE.Vector3(...v).applyMatrix4(rotMat);
-      return [cx + p.x * S, cy - p.y * S, p.z];
-    }
-
-    const pts = cubeVerts.map(project);
-
-    // Sort and draw faces
-    const facesWithDepth = cubeFaces.map(f => {
-      const depth = f.verts.reduce((s,i) => s + pts[i][2], 0) / f.verts.length;
-      return {...f, depth};
-    }).sort((a,b) => a.depth - b.depth);
-
-    for (const f of facesWithDepth) {
-      const fp = f.verts.map(i => pts[i]);
-      cubeCtx.beginPath();
-      cubeCtx.moveTo(fp[0][0], fp[0][1]);
-      for (let i=1;i<fp.length;i++) cubeCtx.lineTo(fp[i][0], fp[i][1]);
-      cubeCtx.closePath();
-      cubeCtx.fillStyle = f.color;
-      cubeCtx.fill();
-    }
-
-    // Draw edges
-    cubeCtx.strokeStyle = 'rgba(74,158,255,0.35)';
-    cubeCtx.lineWidth = 0.8;
-    for (const [a,b] of cubeEdges) {
-      cubeCtx.beginPath();
-      cubeCtx.moveTo(pts[a][0], pts[a][1]);
-      cubeCtx.lineTo(pts[b][0], pts[b][1]);
-      cubeCtx.stroke();
-    }
-
-    // Top face label
-    const top = facesWithDepth[facesWithDepth.length-1];
-    const topCenter = top.verts.reduce((acc,i)=>[acc[0]+pts[i][0]/4,acc[1]+pts[i][1]/4],[0,0]);
-    cubeCtx.fillStyle = 'rgba(180,220,255,0.9)';
-    cubeCtx.font = 'bold 9px Courier New';
-    cubeCtx.textAlign = 'center';
-    cubeCtx.textBaseline = 'middle';
-    cubeCtx.fillText(top.label, topCenter[0], topCenter[1]);
+    cubeCtx.clearRect(0,0,64,64);
+    const cd = new THREE.Vector3(); camera.getWorldDirection(cd);
+    const cu = camera.up.clone();
+    const cr = new THREE.Vector3().crossVectors(cd,cu).normalize();
+    const rm = new THREE.Matrix4().makeBasis(cr, cu, cd.negate());
+    const pts = cVerts.map(v => {
+      const p = new THREE.Vector3(...v).applyMatrix4(rm);
+      return [32+p.x*22, 32-p.y*22, p.z];
+    });
+    [...cFaces].map(f => ({...f, d: f.v.reduce((s,i)=>s+pts[i][2],0)/4}))
+      .sort((a,b)=>a.d-b.d)
+      .forEach(f => {
+        cubeCtx.beginPath();
+        cubeCtx.moveTo(pts[f.v[0]][0],pts[f.v[0]][1]);
+        f.v.slice(1).forEach(i=>cubeCtx.lineTo(pts[i][0],pts[i][1]));
+        cubeCtx.closePath();
+        cubeCtx.fillStyle=f.c; cubeCtx.fill();
+      });
+    cubeCtx.strokeStyle='rgba(74,158,255,0.35)'; cubeCtx.lineWidth=0.8;
+    cEdges.forEach(([a,b])=>{
+      cubeCtx.beginPath(); cubeCtx.moveTo(pts[a][0],pts[a][1]); cubeCtx.lineTo(pts[b][0],pts[b][1]); cubeCtx.stroke();
+    });
   }
+
+  // ── Signal matrix intro that we're ready ──────────────────────────
+  document.getElementById('app').classList.add('ready');
+  window.setModelReady();
 
   // ── Render loop ───────────────────────────────────────────────────
   (function animate() {
