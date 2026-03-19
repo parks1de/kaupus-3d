@@ -274,15 +274,20 @@ function setLoadProgress(pct, msg) {
   fill.position.set(-300,200,-400); scene.add(fill);
 
   // ── Orbit ─────────────────────────────────────────────────────
-  let rotX=-0.7,rotY=0.4,radius=600,panX=0,panY=0;
-  const DEF={rotX:-0.7,rotY:0.4,radius:600,panX:0,panY:0};
+  let rotX=-0.6,rotY=0.5,radius=700,panX=0,panY=0;
+  const DEF={rotX:-0.6,rotY:0.5,radius:700,panX:0,panY:0};
   function updateCamera(){
     const cx=panX, cz=panY;
-    const x=cx + radius*Math.sin(rotY)*Math.cos(rotX);
-    const y=      radius*Math.sin(-rotX);
-    const z=cz + radius*Math.cos(rotY)*Math.cos(rotX);
-    camera.position.set(x, Math.max(5,y), z);
+    // Standard spherical: rotY=azimuth, rotX=elevation (negative = above)
+    const sinY=Math.sin(rotY), cosY=Math.cos(rotY);
+    const sinX=Math.sin(rotX), cosX=Math.cos(rotX);
+    camera.position.set(
+      cx + radius * cosX * sinY,
+      Math.max(10, -radius * sinX),
+      cz + radius * cosX * cosY
+    );
     camera.lookAt(cx, 0, cz);
+    camera.up.set(0,1,0);
   }
   updateCamera();
 
@@ -292,7 +297,7 @@ function setLoadProgress(pct, msg) {
     if(!isDragging)return;
     const dx=e.clientX-lastMX,dy=e.clientY-lastMY;
     if(e.shiftKey){panX-=dx*radius*0.001;panY+=dy*radius*0.001;}
-    else{rotY+=dx*0.005;rotX+=dy*0.005;rotX=Math.max(-1.4,Math.min(-0.02,rotX));}
+    else{rotY+=dx*0.005;rotX+=dy*0.005;rotX=Math.max(-1.55,Math.min(-0.05,rotX));}
     lastMX=e.clientX;lastMY=e.clientY;updateCamera();
   });
   window.addEventListener('mouseup',()=>isDragging=false);
@@ -319,7 +324,7 @@ function setLoadProgress(pct, msg) {
     e.preventDefault();
     if(e.touches.length===1&&isDragging){
       const dx=e.touches[0].clientX-lastMX,dy=e.touches[0].clientY-lastMY;
-      rotY+=dx*0.005;rotX+=dy*0.005;rotX=Math.max(-1.4,Math.min(-0.02,rotX));
+      rotY+=dx*0.005;rotX+=dy*0.005;rotX=Math.max(-1.55,Math.min(-0.05,rotX));
       lastMX=e.touches[0].clientX;lastMY=e.touches[0].clientY;updateCamera();
     }
     if(e.touches.length===2){
@@ -380,19 +385,17 @@ function setLoadProgress(pct, msg) {
   }
 
   const root=glb.scene;
-  // Flip model right-side up (GLB Y-up vs Z-up convention)
-  root.rotation.x = Math.PI;
-  // Scale first
+  // Scale, then center properly
   const box0=new THREE.Box3().setFromObject(root);
   const size0=box0.getSize(new THREE.Vector3());
   const scaleFactor=500/Math.max(size0.x,size0.z);
   root.scale.setScalar(scaleFactor);
-  // Now center XZ and sit on ground — AFTER scaling
+  root.updateMatrixWorld(true);
   const box1=new THREE.Box3().setFromObject(root);
   const center1=box1.getCenter(new THREE.Vector3());
   root.position.x -= center1.x;
   root.position.z -= center1.z;
-  root.position.y -= box1.min.y; // sit on y=0
+  root.position.y -= box1.min.y;
   scene.add(root);
   // Collect meshes
   const allMeshes=[];
