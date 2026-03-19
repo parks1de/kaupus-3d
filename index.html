@@ -163,7 +163,7 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
     <div id="matrix-load-status">Lastar 3D — hald ut&hellip;</div>
     <div id="matrix-progress-wrap"><div id="matrix-progress"></div></div>
     <div id="matrix-hint">[ klikk for å halda fram ]</div>
-  <div id="matrix-version">v1.3</div>
+  <div id="matrix-version">v1.4</div>
   </div>
 </div>
 
@@ -402,12 +402,32 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
     return 'terrain';
   }
 
+  // Layer colors — strong, saturated overrides
+  const layerColors = {
+    buildings: new THREE.Color(0xd4c4a0), // warm stone
+    terrain:   new THREE.Color(0xe8dfd0), // warm ground
+    green:     new THREE.Color(0x72c46a), // strong green
+    roads:     new THREE.Color(0xa09078), // warm asphalt
+    water:     new THREE.Color(0x4aa8e8), // strong blue
+    parcels:   new THREE.Color(0xe0c840), // amber cadastre
+    contours:  new THREE.Color(0xb89850), // tan contours
+  };
+
   const allMeshes = [];
   root.traverse(c => { if (c.isMesh) allMeshes.push(c); });
   for (let i = 0; i < allMeshes.length; i += 80) {
     for (const c of allMeshes.slice(i, i + 80)) {
       c.castShadow = true; c.receiveShadow = true;
-      layers[classify(c.name)].push(c);
+      const key = classify(c.name);
+      layers[key].push(c);
+      // Override material color per layer
+      if (c.material && layerColors[key]) {
+        // Clone material so we don't affect other meshes sharing it
+        c.material = c.material.clone();
+        c.material.color.copy(layerColors[key]);
+        c.material.roughness = key === 'water' ? 0.1 : 0.85;
+        c.material.metalness = key === 'water' ? 0.05 : 0.0;
+      }
     }
     setP(80 + Math.round(i / allMeshes.length * 15), 'Organiserer lag…');
     await new Promise(r => setTimeout(r, 0));
