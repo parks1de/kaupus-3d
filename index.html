@@ -274,14 +274,15 @@ function setLoadProgress(pct, msg) {
   fill.position.set(-300,200,-400); scene.add(fill);
 
   // ── Orbit ─────────────────────────────────────────────────────
-  let rotX=-0.65,rotY=0.3,radius=520,panX=0,panY=0;
-  const DEF={rotX:-0.65,rotY:0.3,radius:520,panX:0,panY:0};
+  let rotX=-0.7,rotY=0.4,radius=600,panX=0,panY=0;
+  const DEF={rotX:-0.7,rotY:0.4,radius:600,panX:0,panY:0};
   function updateCamera(){
-    const x=panX+radius*Math.sin(rotY)*Math.cos(rotX);
-    const y=-radius*Math.sin(rotX)+80;
-    const z=radius*Math.cos(rotY)*Math.cos(rotX);
-    camera.position.set(x,Math.max(5,y),z);
-    camera.lookAt(panX,0,panY);
+    const cx=panX, cz=panY;
+    const x=cx + radius*Math.sin(rotY)*Math.cos(rotX);
+    const y=      radius*Math.sin(-rotX);
+    const z=cz + radius*Math.cos(rotY)*Math.cos(rotX);
+    camera.position.set(x, Math.max(5,y), z);
+    camera.lookAt(cx, 0, cz);
   }
   updateCamera();
 
@@ -298,7 +299,7 @@ function setLoadProgress(pct, msg) {
   renderer.domElement.addEventListener('wheel',e=>{
     e.preventDefault();
     radius*=e.deltaY>0?1.07:0.93;
-    radius=Math.max(8,Math.min(4000,radius));
+    radius=Math.max(5,Math.min(8000,radius));
     updateCamera();
   },{passive:false});
   renderer.domElement.addEventListener('dblclick',()=>{
@@ -323,7 +324,7 @@ function setLoadProgress(pct, msg) {
     }
     if(e.touches.length===2){
       const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
-      if(lastTDist){radius*=lastTDist/d;radius=Math.max(8,Math.min(4000,radius));updateCamera();}
+      if(lastTDist){radius*=lastTDist/d;radius=Math.max(5,Math.min(8000,radius));updateCamera();}
       lastTDist=d;
     }
   },{passive:false});
@@ -379,13 +380,18 @@ function setLoadProgress(pct, msg) {
   }
 
   const root=glb.scene;
-  const box=new THREE.Box3().setFromObject(root);
-  const center=box.getCenter(new THREE.Vector3());
-  const size=box.getSize(new THREE.Vector3());
-  root.position.sub(center);
-  root.scale.setScalar(500/Math.max(size.x,size.z));
-  const box2=new THREE.Box3().setFromObject(root);
-  root.position.y-=box2.min.y;
+  // Scale first
+  const box0=new THREE.Box3().setFromObject(root);
+  const size0=box0.getSize(new THREE.Vector3());
+  const scaleFactor=500/Math.max(size0.x,size0.z);
+  root.scale.setScalar(scaleFactor);
+  // Now center XZ and sit on ground — AFTER scaling
+  const box1=new THREE.Box3().setFromObject(root);
+  const center1=box1.getCenter(new THREE.Vector3());
+  root.position.x -= center1.x;
+  root.position.z -= center1.z;
+  root.position.y -= box1.min.y; // sit on y=0
+  scene.add(root);
   // Collect meshes
   const allMeshes=[];
   root.traverse(child=>{ if(child.isMesh) allMeshes.push(child); });
