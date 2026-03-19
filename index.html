@@ -163,7 +163,7 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
     <div id="matrix-load-status">Lastar 3D — hald ut&hellip;</div>
     <div id="matrix-progress-wrap"><div id="matrix-progress"></div></div>
     <div id="matrix-hint">[ klikk for å halda fram ]</div>
-  <div id="matrix-version">v1.4</div>
+  <div id="matrix-version">v1.5</div>
   </div>
 </div>
 
@@ -294,8 +294,8 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
   camera.up.set(0, 1, 0);
 
   // ── Lights ────────────────────────────────────────────────────────
-  scene.add(new THREE.AmbientLight(0xb0c0d8, 0.7));
-  const sun = new THREE.DirectionalLight(0xfff4d8, 1.5);
+  scene.add(new THREE.AmbientLight(0xb0c0d8, 0.45));
+  const sun = new THREE.DirectionalLight(0xfff4d8, 2.2);
   sun.position.set(400, 800, 300);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -423,11 +423,13 @@ body { background:#000; font-family:'Courier New',monospace; overflow:hidden; he
       // Override material color per layer
       if (c.material && layerColors[key]) {
         const mats = Array.isArray(c.material) ? c.material : [c.material];
+        const roughMap = {buildings:0.6,terrain:0.8,roads:0.65,green:0.6,water:0.15,parcels:0.7,contours:0.75};
         const cloned = mats.map(m => {
           const mc = m.clone();
-          mc.color.copy(layerColors[key]);
-          mc.roughness = key === 'water' ? 0.1 : 0.85;
+          mc.color.copy(layerColors[key]).multiplyScalar(1.15);
+          mc.roughness = roughMap[key] ?? 0.65;
           mc.metalness = key === 'water' ? 0.05 : 0.0;
+          mc.emissive = layerColors[key].clone().multiplyScalar(0.12);
           return mc;
         });
         c.material = cloned.length === 1 ? cloned[0] : cloned;
